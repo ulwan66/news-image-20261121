@@ -21,10 +21,27 @@ def _sha256(path):
     return h.hexdigest()
 
 
+def _check_png(path):
+    """The shipped image must be a whole PNG within the gate's caps."""
+    with open(path, "rb") as f:
+        head = f.read(33)
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        raise SystemExit("entry.png is not a PNG")
+    if head[12:16] != b"IHDR":
+        raise SystemExit("entry.png has no IHDR chunk")
+    width = int.from_bytes(head[16:20], "big")
+    height = int.from_bytes(head[20:24], "big")
+    if width > 1024 or height > 1024:
+        raise SystemExit("entry.png is larger than 1024x1024")
+    if os.path.getsize(path) > 1048576:
+        raise SystemExit("entry.png is larger than 1 MiB")
+
+
 def main():
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
     src = os.path.join(HERE, "entry.png")
+    _check_png(src)
     dst = os.path.join(out_dir, "entry.png")
     shutil.copyfile(src, dst)
     # Self-check: the copy must match the shipped image exactly, so both
